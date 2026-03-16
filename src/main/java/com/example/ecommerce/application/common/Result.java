@@ -1,8 +1,11 @@
 package com.example.ecommerce.application.common;
 
+import lombok.Getter;
+
 /**
  * Minimal functional-style result wrapper used across controllers/handlers.
  */
+@Getter
 public final class Result<T> {
 	private final boolean success;
 	private final T value;
@@ -22,19 +25,8 @@ public final class Result<T> {
 		return new Result<>(false, null, error == null ? "Unknown error" : error);
 	}
 
-	public boolean isSuccess() {
-		return success;
-	}
-
-	public boolean isFailure() {
+    public boolean isFailure() {
 		return !success;
 	}
 
-	public T getValue() {
-		return value;
-	}
-
-	public String getError() {
-		return error;
-	}
 }

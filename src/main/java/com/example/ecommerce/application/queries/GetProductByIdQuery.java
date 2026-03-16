@@ -1,5 +1,8 @@
 package com.example.ecommerce.application.queries;
 
+import lombok.Getter;
+
+@Getter
 public class GetProductByIdQuery {
     private final String productId;
 
@@ -7,7 +10,4 @@ public class GetProductByIdQuery {
         this.productId = productId;
     }
 
-    public String getProductId() {
-        return productId;
-    }
 }

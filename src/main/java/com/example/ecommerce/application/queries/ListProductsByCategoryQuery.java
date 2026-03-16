@@ -1,5 +1,8 @@
 package com.example.ecommerce.application.queries;
 
+import lombok.Getter;
+
+@Getter
 public class ListProductsByCategoryQuery {
     private final String category;
 
@@ -7,7 +10,4 @@ public class ListProductsByCategoryQuery {
         this.category = category;
     }
 
-    public String getCategory() {
-        return category;
-    }
 }
