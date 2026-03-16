@@ -1,7 +1,7 @@
 package com.example.ecommerce.application.events.handlers;
 
 import com.example.ecommerce.domain.events.InventoryUpdatedEvent;
-import com.example.ecommerce.infrastructure.services.NotificationService;
+import com.example.ecommerce.application.services.NotificationService;
 import org.springframework.stereotype.Component;
 
 @Component

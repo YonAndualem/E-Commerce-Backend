@@ -1,5 +1,8 @@
 package com.example.ecommerce.application.commands;
 
+import lombok.Getter;
+
+@Getter
 public class UpdateInventoryCommand {
     private final String productId;
     private final int quantity;
@@ -15,6 +18,4 @@ public class UpdateInventoryCommand {
         this.quantity = quantity;
     }
 
-    public String getProductId() { return productId; }
-    public int getQuantity() { return quantity; }
 }
