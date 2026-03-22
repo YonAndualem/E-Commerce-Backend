@@ -21,6 +21,11 @@ public class OrderEntity {
     @ElementCollection
     private List<UUID> productIds;
 
+    private String shippingStreet;
+    private String shippingCity;
+    private String shippingZipCode;
+    private String shippingCountry;
+
     // Getters and setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -39,4 +44,16 @@ public class OrderEntity {
 
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
+
+    public String getShippingStreet() { return shippingStreet; }
+    public void setShippingStreet(String shippingStreet) { this.shippingStreet = shippingStreet; }
+
+    public String getShippingCity() { return shippingCity; }
+    public void setShippingCity(String shippingCity) { this.shippingCity = shippingCity; }
+
+    public String getShippingZipCode() { return shippingZipCode; }
+    public void setShippingZipCode(String shippingZipCode) { this.shippingZipCode = shippingZipCode; }
+
+    public String getShippingCountry() { return shippingCountry; }
+    public void setShippingCountry(String shippingCountry) { this.shippingCountry = shippingCountry; }
 }

@@ -21,8 +21,7 @@ public class OrderAggregate {
     }
 
     public OrderCreatedEvent createOrderEvent() {
-        // Raise domain event when order is created
-        return new OrderCreatedEvent(order.getId(), order.getCustomerId());
+        return new OrderCreatedEvent(order.getId(), order.getCustomerId(), order.getShippingAddress());
     }
 
     // Business behavior: calculate total amount

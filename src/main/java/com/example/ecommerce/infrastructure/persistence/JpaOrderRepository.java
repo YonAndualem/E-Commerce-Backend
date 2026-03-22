@@ -1,6 +1,7 @@
 package com.example.ecommerce.infrastructure.persistence;
 
 import com.example.ecommerce.domain.entities.Order;
+import com.example.ecommerce.domain.valueobjects.Address;
 import com.example.ecommerce.domain.valueobjects.Money;
 import com.example.ecommerce.infrastructure.repositories.OrderRepository;
 
@@ -42,6 +43,10 @@ public class JpaOrderRepository implements OrderRepository {
         entity.setProductIds(order.getProductIds());
         entity.setTotalAmount(order.getTotalAmount().amount().doubleValue());
         entity.setCurrency(order.getTotalAmount().currency());
+        entity.setShippingStreet(order.getShippingAddress().street());
+        entity.setShippingCity(order.getShippingAddress().city());
+        entity.setShippingZipCode(order.getShippingAddress().zipCode());
+        entity.setShippingCountry(order.getShippingAddress().country());
         entityManager.merge(entity);
     }
 
@@ -55,8 +60,14 @@ public class JpaOrderRepository implements OrderRepository {
     }
 
     private Order mapToDomain(OrderEntity entity) {
-        return new Order(entity.getId(), entity.getCustomerId(),
-                entity.getProductIds(), new Money(BigDecimal.valueOf(entity.getTotalAmount()), entity.getCurrency()));
+        Address shippingAddress = new Address(
+                entity.getShippingStreet(),
+                entity.getShippingCity(),
+                entity.getShippingZipCode(),
+                entity.getShippingCountry()
+        );
+        return new Order(entity.getId(), entity.getCustomerId(), entity.getProductIds(),
+                new Money(BigDecimal.valueOf(entity.getTotalAmount()), entity.getCurrency()),
+                shippingAddress);
     }
-
 }

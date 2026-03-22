@@ -61,7 +61,8 @@ public class CreateOrderHandler {
             Money totalAmount = new Money(total, "USD");
 
             // Create order, then wrap in aggregate for business operations
-            Order order = OrderFactory.createOrder(command.getCustomerId(), command.getProductIds(), totalAmount);
+            Order order = OrderFactory.createOrder(command.getCustomerId(), command.getProductIds(), totalAmount,
+                    command.getShippingAddress());
             OrderAggregate aggregate = new OrderAggregate(order, products);
 
             // Reduce stock via aggregate and persist each updated product

@@ -2,6 +2,7 @@ package com.example.ecommerce.domain.aggregates;
 
 import com.example.ecommerce.domain.entities.Order;
 import com.example.ecommerce.domain.entities.Product;
+import com.example.ecommerce.domain.valueobjects.Address;
 import com.example.ecommerce.domain.valueobjects.Money;
 import org.junit.jupiter.api.Test;
 
@@ -18,12 +19,14 @@ class OrderAggregateTest {
                 new Money(BigDecimal.valueOf(price), "USD"), stock);
     }
 
+    private static final Address ADDRESS = new Address("1 Test St", "Testville", "00001", "US");
+
     private Order order(List<Product> products) {
         BigDecimal total = products.stream()
                 .map(p -> p.getPrice().amount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         List<UUID> ids = products.stream().map(Product::getId).toList();
-        return new Order(UUID.randomUUID(), "cust-1", ids, new Money(total, "USD"));
+        return new Order(UUID.randomUUID(), "cust-1", ids, new Money(total, "USD"), ADDRESS);
     }
 
     @Test
