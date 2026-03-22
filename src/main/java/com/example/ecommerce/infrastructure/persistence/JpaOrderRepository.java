@@ -12,8 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 public class JpaOrderRepository implements OrderRepository {
@@ -29,6 +31,15 @@ public class JpaOrderRepository implements OrderRepository {
         OrderEntity entity = entityManager.find(OrderEntity.class, id);
         if (entity == null) return Optional.empty();
         return Optional.of(mapToDomain(entity));
+    }
+
+    @Override
+    public List<Order> findAll() {
+        return entityManager.createQuery("SELECT o FROM OrderEntity o", OrderEntity.class)
+                .getResultList()
+                .stream()
+                .map(this::mapToDomain)
+                .collect(Collectors.toList());
     }
 
     @Override

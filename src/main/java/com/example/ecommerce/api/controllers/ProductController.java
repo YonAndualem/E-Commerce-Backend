@@ -12,13 +12,16 @@ import com.example.ecommerce.domain.entities.Product;
 import com.example.ecommerce.domain.factories.ProductFactory;
 import com.example.ecommerce.domain.valueobjects.Money;
 import com.example.ecommerce.infrastructure.repositories.ProductRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.math.BigDecimal;
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
@@ -36,21 +39,27 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<?> addProduct(@RequestBody ProductRequest request) {
+    public ResponseEntity<?> addProduct(@Valid @RequestBody ProductRequest request) {
         Product product = ProductFactory.create(
                 request.getName(),
                 request.getCategory(),
-                new Money(BigDecimal.valueOf(request.getPrice()), "USD"),
+                new Money(request.getPrice(), "USD"),
                 request.getStock()
         );
         productRepository.save(product);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ProductResponse(
-                product.getId(),
-                product.getName(),
-                product.getCategory(),
-                product.getPrice().amount(),
-                product.getStock()
-        ));
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(product.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(toResponse(product));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ProductResponse>> listAllProducts() {
+        List<ProductResponse> products = productRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(products);
     }
 
     @GetMapping("/{id}")
@@ -63,13 +72,56 @@ public class ProductController {
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), result.getError()));
     }
 
-    @GetMapping("/category/{category}")
-    public ResponseEntity<?> listProductsByCategory(@PathVariable String category) {
-        Result<List<ProductResponse>> result = listProductsByCategoryHandler.handle(new ListProductsByCategoryQuery(category));
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getValue());
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateProduct(@PathVariable UUID id, @Valid @RequestBody ProductRequest request) {
+        Result<ProductResponse> existing = getProductByIdHandler.handle(new GetProductByIdQuery(id));
+        if (!existing.isSuccess()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "Product not found: " + id));
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), result.getError()));
+        Product updated = new Product(id, request.getName(), request.getCategory(),
+                new Money(request.getPrice(), "USD"), request.getStock());
+        productRepository.save(updated);
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
+        Result<ProductResponse> existing = getProductByIdHandler.handle(new GetProductByIdQuery(id));
+        if (!existing.isSuccess()) {
+            return ResponseEntity.notFound().build();
+        }
+        productRepository.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/category/{category}")
+    public ResponseEntity<?> listProductsByCategory(
+            @PathVariable String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Result<List<ProductResponse>> result = listProductsByCategoryHandler.handle(
+                new ListProductsByCategoryQuery(category));
+        if (!result.isSuccess()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), result.getError()));
+        }
+        List<ProductResponse> all = result.getValue();
+        int fromIndex = page * size;
+        if (fromIndex >= all.size()) {
+            return ResponseEntity.ok(List.of());
+        }
+        int toIndex = Math.min(fromIndex + size, all.size());
+        return ResponseEntity.ok(all.subList(fromIndex, toIndex));
+    }
+
+    private ProductResponse toResponse(Product product) {
+        return new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getCategory(),
+                product.getPrice().amount(),
+                product.getStock()
+        );
     }
 }

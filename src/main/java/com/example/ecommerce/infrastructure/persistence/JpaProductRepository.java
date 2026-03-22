@@ -34,6 +34,15 @@ public class JpaProductRepository implements ProductRepository {
     }
 
     @Override
+    public List<Product> findAll() {
+        return entityManager.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class)
+                .getResultList()
+                .stream()
+                .map(this::mapToDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Product> findByCategory(String category) {
         return entityManager.createQuery("SELECT p FROM ProductEntity p WHERE p.category = :category", ProductEntity.class)
                 .setParameter("category", category)

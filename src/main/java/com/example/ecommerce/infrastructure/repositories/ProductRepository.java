@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface ProductRepository {
     Optional<Product> findById(UUID id);
+    List<Product> findAll();
     List<Product> findByCategory(String category);
     void save(Product product);
     void delete(UUID id);

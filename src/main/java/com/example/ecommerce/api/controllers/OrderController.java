@@ -1,50 +1,94 @@
 package com.example.ecommerce.api.controllers;
 
 import com.example.ecommerce.api.dto.ErrorResponse;
+import com.example.ecommerce.api.dto.OrderRequest;
 import com.example.ecommerce.api.dto.OrderResponse;
 import com.example.ecommerce.application.commands.CreateOrderCommand;
 import com.example.ecommerce.application.commands.handlers.CreateOrderHandler;
 import com.example.ecommerce.application.common.Result;
 import com.example.ecommerce.application.queries.GetOrderByIdQuery;
 import com.example.ecommerce.application.queries.handlers.GetOrderByIdHandler;
+import com.example.ecommerce.domain.valueobjects.Address;
+import com.example.ecommerce.infrastructure.repositories.OrderRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
     private final CreateOrderHandler createOrderHandler;
     private final GetOrderByIdHandler getOrderByIdHandler;
+    private final OrderRepository orderRepository;
 
     public OrderController(CreateOrderHandler createOrderHandler,
-                           GetOrderByIdHandler getOrderByIdHandler) {
+                           GetOrderByIdHandler getOrderByIdHandler,
+                           OrderRepository orderRepository) {
         this.createOrderHandler = createOrderHandler;
         this.getOrderByIdHandler = getOrderByIdHandler;
+        this.orderRepository = orderRepository;
     }
 
     @PostMapping
-    public ResponseEntity<?> createOrder(@RequestBody CreateOrderCommand command) {
+    public ResponseEntity<?> createOrder(@Valid @RequestBody OrderRequest request) {
+        Address shippingAddress = new Address(
+                request.getShippingAddress().getStreet(),
+                request.getShippingAddress().getCity(),
+                request.getShippingAddress().getZipCode(),
+                request.getShippingAddress().getCountry()
+        );
+        CreateOrderCommand command = new CreateOrderCommand(
+                request.getCustomerId(),
+                request.getProductIds(),
+                shippingAddress
+        );
         Result<UUID> result = createOrderHandler.handle(command);
-        if (result.isSuccess()) {
-            Result<OrderResponse> orderResult = getOrderByIdHandler.handle(new GetOrderByIdQuery(result.getValue()));
-            if (orderResult.isSuccess()) {
-                return ResponseEntity.status(HttpStatus.CREATED).body(orderResult.getValue());
-            }
+        if (!result.isSuccess()) {
+            String error = result.getError();
+            HttpStatus status = error.contains("not found") ? HttpStatus.NOT_FOUND
+                    : error.contains("out of stock") ? HttpStatus.CONFLICT
+                    : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status)
+                    .body(new ErrorResponse(status.value(), error));
+        }
+        UUID orderId = result.getValue();
+        Result<OrderResponse> orderResult = getOrderByIdHandler.handle(new GetOrderByIdQuery(orderId));
+        if (!orderResult.isSuccess()) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(),
                             "Order created but could not be retrieved"));
         }
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(orderId)
+                .toUri();
+        return ResponseEntity.created(location).body(orderResult.getValue());
+    }
 
-        String error = result.getError();
-        if (error.contains("not found")) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), error));
-        }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), error));
+    @GetMapping
+    public ResponseEntity<List<OrderResponse>> listAllOrders() {
+        List<OrderResponse> orders = orderRepository.findAll().stream()
+                .map(order -> {
+                    Address addr = order.getShippingAddress();
+                    String formattedAddress = addr.street() + ", " + addr.city()
+                            + ", " + addr.zipCode() + ", " + addr.country();
+                    return new OrderResponse(
+                            order.getId(),
+                            order.getCustomerId(),
+                            order.getProductIds(),
+                            order.getTotalAmount().amount(),
+                            formattedAddress
+                    );
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(orders);
     }
 
     @GetMapping("/{id}")
