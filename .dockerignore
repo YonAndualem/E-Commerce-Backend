@@ -6,4 +6,8 @@
 target
 
 README.md
+*.md
 *.log
+*.iml
+postman/
+.env

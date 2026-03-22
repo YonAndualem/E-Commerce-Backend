@@ -25,4 +25,8 @@ ENV SERVER_PORT=8080
 EXPOSE 8080
 
 USER spring
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-jar", "/app/app.jar"]
