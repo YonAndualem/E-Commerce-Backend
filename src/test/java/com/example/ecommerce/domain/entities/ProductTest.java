@@ -46,6 +46,12 @@ class ProductTest {
     }
 
     @Test
+    void updateStock_rejectsNegativeStock() {
+        Product product = validProduct();
+        assertThrows(IllegalArgumentException.class, () -> product.updateStock(-1));
+    }
+
+    @Test
     void updatePrice_updatesPrice() {
         Product product = validProduct();
         Money newPrice = new Money(BigDecimal.valueOf(149.99), "USD");

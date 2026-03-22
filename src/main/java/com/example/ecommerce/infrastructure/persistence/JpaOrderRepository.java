@@ -9,6 +9,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,7 +50,7 @@ public class JpaOrderRepository implements OrderRepository {
             entity.setId(order.getId());
         }
         entity.setCustomerId(order.getCustomerId());
-        entity.setProductIds(order.getProductIds());
+        entity.setProductIds(new ArrayList<>(order.getProductIds()));
         entity.setTotalAmount(order.getTotalAmount().amount());
         entity.setCurrency(order.getTotalAmount().currency());
         entity.setShippingStreet(order.getShippingAddress().street());
