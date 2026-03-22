@@ -48,7 +48,7 @@ public class JpaOrderRepository implements OrderRepository {
 
     private Order mapToDomain(OrderEntity entity) {
         return new Order(entity.getId(), entity.getCustomerId(),
-                entity.getProductIds(), new Money(BigDecimal.valueOf(entity.getTotalAmount()), "USD"));
+                entity.getProductIds(), new Money(BigDecimal.valueOf(entity.getTotalAmount()), entity.getCurrency()));
     }
 
     private OrderEntity mapToEntity(Order order) {
@@ -57,6 +57,7 @@ public class JpaOrderRepository implements OrderRepository {
         entity.setCustomerId(order.getCustomerId());
         entity.setProductIds(order.getProductIds());
         entity.setTotalAmount(order.getTotalAmount().amount().doubleValue());
+        entity.setCurrency(order.getTotalAmount().currency());
         return entity;
     }
 }

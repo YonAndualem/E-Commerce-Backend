@@ -12,6 +12,8 @@ import com.example.ecommerce.domain.valueobjects.Money;
 import com.example.ecommerce.infrastructure.repositories.OrderRepository;
 import com.example.ecommerce.infrastructure.repositories.ProductRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -21,6 +23,8 @@ import java.util.UUID;
 
 @Component
 public class CreateOrderHandler {
+    private static final Logger log = LoggerFactory.getLogger(CreateOrderHandler.class);
+
     private final OrderCreatedEventHandler orderCreatedEventHandler;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
@@ -73,7 +77,10 @@ public class CreateOrderHandler {
             orderCreatedEventHandler.handle(event);
 
             return Result.success(order.getId());
+        } catch (IllegalArgumentException e) {
+            return Result.failure(e.getMessage());
         } catch (Exception e) {
+            log.error("Unexpected error creating order for customer {}: {}", command.getCustomerId(), e.getMessage(), e);
             return Result.failure("Failed to create order: " + e.getMessage());
         }
     }

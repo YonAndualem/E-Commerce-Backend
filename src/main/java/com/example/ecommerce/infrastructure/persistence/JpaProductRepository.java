@@ -61,7 +61,7 @@ public class JpaProductRepository implements ProductRepository {
 
     private Product mapToDomain(ProductEntity entity) {
         return new Product(entity.getId(), entity.getName(), entity.getCategory(),
-                new Money(BigDecimal.valueOf(entity.getPrice()), "USD"), entity.getStock());
+                new Money(BigDecimal.valueOf(entity.getPrice()), entity.getCurrency()), entity.getStock());
     }
 
     private ProductEntity mapToEntity(Product product) {
@@ -70,6 +70,7 @@ public class JpaProductRepository implements ProductRepository {
         entity.setName(product.getName());
         entity.setCategory(product.getCategory());
         entity.setPrice(product.getPrice().amount().doubleValue());
+        entity.setCurrency(product.getPrice().currency());
         entity.setStock(product.getStock());
         return entity;
     }

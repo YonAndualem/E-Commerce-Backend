@@ -12,6 +12,7 @@ public class OrderEntity {
     private UUID id;
     private String customerId;
     private double totalAmount;
+    private String currency;
 
     @ElementCollection
     private List<UUID> productIds;
@@ -28,4 +29,7 @@ public class OrderEntity {
 
     public List<UUID> getProductIds() { return productIds; }
     public void setProductIds(List<UUID> productIds) { this.productIds = productIds; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 }
