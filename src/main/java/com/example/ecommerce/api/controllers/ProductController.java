@@ -2,18 +2,22 @@ package com.example.ecommerce.api.controllers;
 
 import com.example.ecommerce.api.dto.ErrorResponse;
 import com.example.ecommerce.api.dto.ProductRequest;
+import com.example.ecommerce.application.commands.CreateProductCommand;
+import com.example.ecommerce.application.commands.DeleteProductCommand;
 import com.example.ecommerce.application.commands.UpdateInventoryCommand;
+import com.example.ecommerce.application.commands.UpdateProductCommand;
+import com.example.ecommerce.application.commands.handlers.CreateProductHandler;
+import com.example.ecommerce.application.commands.handlers.DeleteProductHandler;
 import com.example.ecommerce.application.commands.handlers.UpdateInventoryHandler;
+import com.example.ecommerce.application.commands.handlers.UpdateProductHandler;
 import com.example.ecommerce.application.common.Result;
 import com.example.ecommerce.application.dto.ProductResponse;
 import com.example.ecommerce.application.queries.GetProductByIdQuery;
+import com.example.ecommerce.application.queries.ListAllProductsQuery;
 import com.example.ecommerce.application.queries.ListProductsByCategoryQuery;
 import com.example.ecommerce.application.queries.handlers.GetProductByIdHandler;
+import com.example.ecommerce.application.queries.handlers.ListAllProductsHandler;
 import com.example.ecommerce.application.queries.handlers.ListProductsByCategoryHandler;
-import com.example.ecommerce.domain.entities.Product;
-import com.example.ecommerce.domain.factories.ProductFactory;
-import com.example.ecommerce.domain.valueobjects.Money;
-import com.example.ecommerce.domain.repositories.ProductRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,92 +27,92 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
-    private final GetProductByIdHandler getProductByIdHandler;
-    private final ListProductsByCategoryHandler listProductsByCategoryHandler;
+    private final CreateProductHandler createProductHandler;
+    private final UpdateProductHandler updateProductHandler;
+    private final DeleteProductHandler deleteProductHandler;
     private final UpdateInventoryHandler updateInventoryHandler;
-    private final ProductRepository productRepository;
+    private final GetProductByIdHandler getProductByIdHandler;
+    private final ListAllProductsHandler listAllProductsHandler;
+    private final ListProductsByCategoryHandler listProductsByCategoryHandler;
 
-    public ProductController(GetProductByIdHandler getProductByIdHandler,
-                             ListProductsByCategoryHandler listProductsByCategoryHandler,
+    public ProductController(CreateProductHandler createProductHandler,
+                             UpdateProductHandler updateProductHandler,
+                             DeleteProductHandler deleteProductHandler,
                              UpdateInventoryHandler updateInventoryHandler,
-                             ProductRepository productRepository) {
-        this.getProductByIdHandler = getProductByIdHandler;
-        this.listProductsByCategoryHandler = listProductsByCategoryHandler;
+                             GetProductByIdHandler getProductByIdHandler,
+                             ListAllProductsHandler listAllProductsHandler,
+                             ListProductsByCategoryHandler listProductsByCategoryHandler) {
+        this.createProductHandler = createProductHandler;
+        this.updateProductHandler = updateProductHandler;
+        this.deleteProductHandler = deleteProductHandler;
         this.updateInventoryHandler = updateInventoryHandler;
-        this.productRepository = productRepository;
+        this.getProductByIdHandler = getProductByIdHandler;
+        this.listAllProductsHandler = listAllProductsHandler;
+        this.listProductsByCategoryHandler = listProductsByCategoryHandler;
     }
 
     @PostMapping
     public ResponseEntity<?> addProduct(@Valid @RequestBody ProductRequest request) {
-        Product product = ProductFactory.create(
-                request.getName(),
-                request.getCategory(),
-                new Money(request.getPrice(), "USD"),
-                request.getStock()
-        );
-        productRepository.save(product);
+        Result<ProductResponse> result = createProductHandler.handle(
+                new CreateProductCommand(request.getName(), request.getCategory(),
+                        request.getPrice(), request.getStock()));
+        if (!result.isSuccess()) {
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), result.getError()));
+        }
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(product.getId())
-                .toUri();
-        return ResponseEntity.created(location).body(toResponse(product));
+                .path("/{id}").buildAndExpand(result.getValue().getId()).toUri();
+        return ResponseEntity.created(location).body(result.getValue());
     }
 
     @GetMapping
     public ResponseEntity<List<ProductResponse>> listAllProducts() {
-        List<ProductResponse> products = productRepository.findAll().stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(listAllProductsHandler.handle(new ListAllProductsQuery()).getValue());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getProductById(@PathVariable UUID id) {
         Result<ProductResponse> result = getProductByIdHandler.handle(new GetProductByIdQuery(id));
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getValue());
-        }
+        if (result.isSuccess()) return ResponseEntity.ok(result.getValue());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), result.getError()));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable UUID id, @Valid @RequestBody ProductRequest request) {
-        Result<ProductResponse> existing = getProductByIdHandler.handle(new GetProductByIdQuery(id));
-        if (!existing.isSuccess()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "Product not found: " + id));
+    public ResponseEntity<?> updateProduct(@PathVariable UUID id,
+                                           @Valid @RequestBody ProductRequest request) {
+        Result<ProductResponse> result = updateProductHandler.handle(
+                new UpdateProductCommand(id, request.getName(), request.getCategory(),
+                        request.getPrice(), request.getStock()));
+        if (!result.isSuccess()) {
+            HttpStatus status = result.getError().contains("not found")
+                    ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status)
+                    .body(new ErrorResponse(status.value(), result.getError()));
         }
-        Product updated = new Product(id, request.getName(), request.getCategory(),
-                new Money(request.getPrice(), "USD"), request.getStock());
-        productRepository.save(updated);
-        return ResponseEntity.ok(toResponse(updated));
+        return ResponseEntity.ok(result.getValue());
     }
 
     @PatchMapping("/{id}/stock")
     public ResponseEntity<?> updateStock(@PathVariable UUID id, @RequestParam int quantity) {
         Result<Void> result = updateInventoryHandler.handle(new UpdateInventoryCommand(id, quantity));
-        if (result.isSuccess()) {
-            return ResponseEntity.noContent().build();
-        }
-        String error = result.getError();
-        HttpStatus status = error.contains("not found") ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
-        return ResponseEntity.status(status).body(new ErrorResponse(status.value(), error));
+        if (result.isSuccess()) return ResponseEntity.noContent().build();
+        HttpStatus status = result.getError().contains("not found")
+                ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(status.value(), result.getError()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
-        Result<ProductResponse> existing = getProductByIdHandler.handle(new GetProductByIdQuery(id));
-        if (!existing.isSuccess()) {
-            return ResponseEntity.notFound().build();
-        }
-        productRepository.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deleteProduct(@PathVariable UUID id) {
+        Result<Void> result = deleteProductHandler.handle(new DeleteProductCommand(id));
+        if (result.isSuccess()) return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), result.getError()));
     }
 
     @GetMapping("/category/{category}")
@@ -118,26 +122,9 @@ public class ProductController {
             @RequestParam(defaultValue = "20") int size) {
         Result<List<ProductResponse>> result = listProductsByCategoryHandler.handle(
                 new ListProductsByCategoryQuery(category));
-        if (!result.isSuccess()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), result.getError()));
-        }
         List<ProductResponse> all = result.getValue();
         int fromIndex = page * size;
-        if (fromIndex >= all.size()) {
-            return ResponseEntity.ok(List.of());
-        }
-        int toIndex = Math.min(fromIndex + size, all.size());
-        return ResponseEntity.ok(all.subList(fromIndex, toIndex));
-    }
-
-    private ProductResponse toResponse(Product product) {
-        return new ProductResponse(
-                product.getId(),
-                product.getName(),
-                product.getCategory(),
-                product.getPrice().amount(),
-                product.getStock()
-        );
+        if (fromIndex >= all.size()) return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(all.subList(fromIndex, Math.min(fromIndex + size, all.size())));
     }
 }
