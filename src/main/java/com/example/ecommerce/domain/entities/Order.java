@@ -15,7 +15,7 @@ public class Order {
         if (productIds == null || productIds.isEmpty()) {
             throw new IllegalArgumentException("Order must contain at least one product");
         }
-        if (totalAmount.amount() <= 0) {
+        if (totalAmount.amount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Total amount must be greater than zero");
         }
         this.id = id;
