@@ -30,12 +30,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             var auth = new UsernamePasswordAuthenticationToken(
                     "api-client", null, List.of(new SimpleGrantedAuthority("ROLE_API")));
             SecurityContextHolder.getContext().setAuthentication(auth);
-            chain.doFilter(request, response);
-        } else {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write(
-                    "{\"status\":401,\"error\":\"Missing or invalid API key\"}");
         }
+        chain.doFilter(request, response);
     }
 }

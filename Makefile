@@ -2,7 +2,7 @@
 
 dev_up:
 	docker compose up -d db
-	./mvnw spring-boot:run
+	set -a && . ./.env && set +a && ./mvnw spring-boot:run
 
 dev_down:
 	docker compose down
